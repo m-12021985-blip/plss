@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+<title>Canteen Debt Book</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial, sans-serif;
+}
+
+body{
+    background:#0f172a;
+    color:white;
+    display:flex;
+    justify-content:center;
+    padding:20px;
+}
+
+.container{
+    width:100%;
+    max-width:420px;
+    background:#1e293b;
+    border-radius:25px;
+    padding:20px;
+    min-height:100vh;
+}
+
+.title{
+    text-align:center;
+    font-size:28px;
+    font-weight:bold;
+    margin-bottom:20px;
+}
+
+.card{
+    background:#334155;
+    padding:15px;
+    border-radius:20px;
+    margin-bottom:15px;
+}
+
+label{
+    font-size:14px;
+    margin-bottom:5px;
+    display:block;
+}
+
+input{
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:12px;
+    margin-bottom:12px;
+    font-size:16px;
+}
+
+button{
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:14px;
+    font-size:16px;
+    font-weight:bold;
+    cursor:pointer;
+    transition:0.2s;
+}
+
+.add-btn{
+    background:#22c55e;
+    color:white;
+}
+
+.add-btn:hover{
+    background:#16a34a;
+}
+
+.debt-list{
+    margin-top:20px;
+}
+
+.debt-item{
+    background:#475569;
+    border-radius:18px;
+    padding:15px;
+    margin-bottom:15px;
+}
+
+.debt-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.name{
+    font-size:20px;
+    font-weight:bold;
+}
+
+.amount{
+    font-size:18px;
+    color:#facc15;
+    font-weight:bold;
+}
+
+.time{
+    margin-top:8px;
+    font-size:12px;
+    color:#cbd5e1;
+}
+
+.pay-btn{
+    margin-top:12px;
+    background:#ef4444;
+    color:white;
+}
+
+.pay-btn:hover{
+    background:#dc2626;
+}
+
+.total{
+    text-align:center;
+    margin-top:15px;
+    font-size:18px;
+    font-weight:bold;
+}
+
+.warning{
+    margin-top:10px;
+    background:#dc2626;
+    padding:12px;
+    border-radius:12px;
+    text-align:center;
+    display:none;
+    font-weight:bold;
+}
+
+.empty{
+    text-align:center;
+    margin-top:20px;
+    color:#cbd5e1;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="title">
+        Canteen Debt Book
+    </div>
+
+    <div class="card">
+
+        <label>Student Name</label>
+        <input type="text" id="name" placeholder="Enter student name">
+
+        <label>Debt Amount (RM)</label>
+        <input type="number" id="amount" placeholder="Enter amount">
+
+        <button class="add-btn" onclick="addDebt()">
+            Add Debt
+        </button>
+
+        <div class="warning" id="warningBox">
+            ⚠ Debt exceeds RM50!
+        </div>
+
+    </div>
+
+    <div class="total" id="totalDebts">
+        Total Debts: 0
+    </div>
+
+    <div class="debt-list" id="debtList">
+
+        <div class="empty" id="emptyText">
+            No debt records yet
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+let debts = JSON.parse(localStorage.getItem("canteenDebts")) || [];
+
+renderDebts();
+
+function speak(text){
+    let speech = new SpeechSynthesisUtterance(text);
+    speech.lang = "en-US";
+    speech.rate = 1;
+    window.speechSynthesis.speak(speech);
+}
+
+function vibratePhone(){
+    if(navigator.vibrate){
+        navigator.vibrate([500,200,500]);
+    }
+}
+
+function addDebt(){
+
+    let nameInput = document.getElementById("name");
+    let amountInput = document.getElementById("amount");
+
+    let name = nameInput.value.trim();
+    let amount = parseFloat(amountInput.value);
+
+    if(name === "" || isNaN(amount) || amount <= 0){
+        alert("Please enter valid details.");
+        return;
+    }
+
+    let existing = debts.find(
+        person => person.name.toLowerCase() === name.toLowerCase()
+    );
+
+    if(existing){
+
+        existing.amount += amount;
+        existing.time = new Date().toLocaleString();
+
+        speak(existing.name + " debt increased to RM " + existing.amount);
+
+        if(existing.amount >= 50){
+            showWarning();
+            speak("Warning. Debt limit exceeded.");
+            vibratePhone();
+        }
+
+    }else{
+
+        debts.push({
+            name:name,
+            amount:amount,
+            time:new Date().toLocaleString()
+        });
+
+        speak(name + " owes RM " + amount);
+
+        if(amount >= 50){
+            showWarning();
+            speak("Warning. Debt limit exceeded.");
+            vibratePhone();
+        }
+    }
+
+    localStorage.setItem("canteenDebts", JSON.stringify(debts));
+
+    renderDebts();
+
+    nameInput.value = "";
+    amountInput.value = "";
+}
+
+function renderDebts(){
+
+    let debtList = document.getElementById("debtList");
+    let totalText = document.getElementById("totalDebts");
+
+    debtList.innerHTML = "";
+
+    if(debts.length === 0){
+
+        debtList.innerHTML = `
+            <div class="empty">
+                No debt records yet
+            </div>
+        `;
+
+        totalText.innerHTML = "Total Debts: 0";
+
+        return;
+    }
+
+    let total = 0;
+
+    debts.forEach((debt,index)=>{
+
+        total += debt.amount;
+
+        debtList.innerHTML += `
+            <div class="debt-item">
+
+                <div class="debt-top">
+
+                    <div>
+                        <div class="name">${debt.name}</div>
+                        <div class="time">${debt.time}</div>
+                    </div>
+
+                    <div class="amount">
+                        RM ${debt.amount.toFixed(2)}
+                    </div>
+
+                </div>
+
+                <button class="pay-btn" onclick="markPaid(${index})">
+                    Mark As Paid
+                </button>
+
+            </div>
+        `;
+    });
+
+    totalText.innerHTML = `
+        Total Debts: RM ${total.toFixed(2)}
+    `;
+}
+
+function markPaid(index){
+
+    let paidName = debts[index].name;
+
+    speak(paidName + " has paid the debt.");
+
+    debts.splice(index,1);
+
+    localStorage.setItem("canteenDebts", JSON.stringify(debts));
+
+    renderDebts();
+}
+
+function showWarning(){
+
+    let box = document.getElementById("warningBox");
+
+    box.style.display = "block";
+
+    setTimeout(()=>{
+        box.style.display = "none";
+    },4000);
+}
+
+</script>
+
+</body>
+</html>
